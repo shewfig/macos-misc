@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# script to auto-update brew stuff
+#
+# 1: update
+# 2: check outdated & iterate the updates
+# 3: use "brew cu"
+# 4: clean up
+
+# 1: update
+# if this doesn't work, nothing following will either
+brew update || exit 1
+
+# 2: check outdated & iterate the updates
+# !!! TODO
+brew outdated
+
+# 3: use "brew cu"
+# check if installed
+butap="buo/cask-upgrade"
+brew tap | grep -q "${butap}"
+buinstalled=$?
+
+# not there, tap it
+if [ $buinstalled -ne 0 ]; then
+	brew tap "${butap}"
+fi
+
+# run brew cu
+brew cu -q --cleanup
+
+# if tapped, untap
+if [ $buinstalled -ne 0 ]; then
+	brew untap "${butap}"
+fi
+
+# 4: clean up
+brew cleanup
