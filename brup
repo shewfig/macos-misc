@@ -9,11 +9,10 @@
 
 # 1: update
 # if this doesn't work, nothing following will either
-brew update || exit 1
+brew update --quiet || exit 1
 
 # 2: check outdated & iterate the updates
-# !!! TODO
-brew outdated
+brew upgrade --cleanup
 
 # 3: use "brew cu"
 # check if installed
