@@ -1,4 +1,4 @@
-#hammerspoon  
+# hammerspoon
 Config files to remap mouse buttons to do interesting things
 
 - __mButton-handler.lua__  
