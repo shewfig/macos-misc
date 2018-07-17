@@ -1,0 +1,37 @@
+#!/bin/bash
+rcfile="$HOME/.jumpboxrc"
+[ -e "$rcfile" ]&&[ -r "$rcfile" ]||exit 1
+source "$rcfile"
+
+[ -n "$cmd" ] || exit 1
+
+action=${1:-'status'}
+cmdpid=$(pgrep -f "$cmd")
+
+case "$action" in
+	"on")
+		if [ -z "$cmdpid" ]; then
+			$cmd
+			cmdpid=$!
+			echo "Started: $cmdpid"
+		else
+			echo "Running: $cmdpid"
+		fi
+		;;
+	"off")
+		if [ -z "$cmdpid" ]; then
+			echo "Not running"
+		else
+			echo "Politely stopping $cmdpid"
+			kill $cmdpid
+		fi
+		;;
+	*)
+		if [ -z "$cmdpid" ]; then
+			echo "Not running"
+		else
+			echo "Running: $cmdpid"
+		fi
+esac
+
+pgrep -lf "$cmd"
