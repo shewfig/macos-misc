@@ -1,9 +1,9 @@
-#hammerspoon
+# hammerspoon
 Config files to remap mouse buttons to do interesting things
 
-- mButton-handler.lua  
+- __mButton-handler.lua__  
   Configurable functions for mouse button clicks and drags.
-- mouseBrain.lua  
+- __mouseBrain.lua__  
   Configurable functions for mouse button clicks and drags, plus auto-adjust tracking speed.
-- trackman-hardcode.lua  
+- __trackman-hardcode.lua__  
   Hard-coded example to set functions for mouse button clicks and drags.
