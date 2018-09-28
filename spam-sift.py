@@ -130,10 +130,15 @@ def make_tuples_from_list_of_lists(size, corpus):
     return retList
 
     
-def showNTell(keyList):
+def showNTell(tuple):
     import webbrowser
     #pdb.set_trace()
-    webbrowser.open(url="https://mail.google.com/mail/u/0/#search/in%3Aspam+\"" + str(keyList) + "\"",
+    if tuple is not None:
+        keyList = "+\"" + str(tuple) + "\""
+    else:
+        keyList = ''
+    
+    webbrowser.open(url="https://mail.google.com/mail/u/0/#search/in%3Aspam" + str(keyList),
         autoraise=True)
     exit(0)
 
@@ -162,15 +167,19 @@ for thread_id in threads:
 
 
 tooMany = 35
-tooFew = 5
+tooFew = 10
+tooFewMin = 5
 hitCount = 0
-tupSize=6
+tupSize=8
 
 #tuples = make_tuples(tupSize, wordList)
 #wordCount = Counter(tuples)
 #hitCount = wordCount.most_common(1)[0][1]
 #pdb.set_trace()
 
+# Test multi-word combos in decreasing length until:
+# Happy: there's a common enough result
+# Unhappy: we're going word by word
 while hitCount <= tooFew and tupSize > 1:
     tupSize-=1
     #tuples = make_tuples(tupSize, wordList)
@@ -179,9 +188,15 @@ while hitCount <= tooFew and tupSize > 1:
     hitCount = wordCount.most_common(1)[0][1]
     #pdb.set_trace()
 
+# Find a tuple in the Goldilocks zone
 #pdb.set_trace()
 for k in wordCount:
     if tooFew < wordCount[k] < tooMany:
         showNTell(k)
 
-showNTell('')
+# We didn't find any Goldilocks tuples, so find one that might be "good enough"
+if wordCount.most_common(1)[0][1] > tooFewMin:
+    showNTell(wordCount.most_common(1)[0][0])
+
+# Just load all messages
+showNTell(None)
