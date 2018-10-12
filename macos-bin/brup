@@ -15,24 +15,8 @@ brew update --quiet || exit 1
 # 2: check outdated & iterate the updates
 brew upgrade --quiet --cleanup
 
-# 3: use "brew cu"
-# check if installed
-butap="buo/cask-upgrade"
-brew tap | grep -q "${butap}"
-buinstalled=$?
-
-# not there, tap it
-if [ $buinstalled -ne 0 ]; then
-	brew tap "${butap}"
-fi
-
-# run brew cu
-brew cu -q --cleanup
-
-# if tapped, untap
-if [ $buinstalled -ne 0 ]; then
-	brew untap "${butap}"
-fi
+# 3: upgrade taps
+brew cask upgrade
 
 # 4: clean up
 brew cleanup
