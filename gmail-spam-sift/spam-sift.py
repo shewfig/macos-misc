@@ -77,18 +77,6 @@ def ListThreadsWithLabels(service, user_id, label_ids=[]):
 
 
 
-def GetThread(service, user_id, msg_id):
-  try:
-    thread = service.users().threads().get(userId=user_id, id=msg_id, format='full').execute()
-
-    #print('Message snippet: %s' % thread['snippet'])
-
-    return thread
-  except errors.HttpError, error:
-    print('An error occurred: %s' % error)
-
-
-
 def unwrap(payload):
     text = base64.urlsafe_b64decode(payload.encode('ascii'))
     return text
@@ -101,25 +89,29 @@ def GetText(payload):
     return wordlist
 
 
-def make_tuples(size, corpus):
-    retList = []
-    if size == 1:
-        from nltk.corpus import stopwords
-        stop_words = list(stopwords.words('english'))
-        stop_words.extend([u'http', u'html', u'www', u'com', u's', u't', u'said'])
-        retList.extend(set(w for w in corpus if w not in stop_words))
-    else:
-        for i in range(len(corpus)-(size-1)):
-            retList.append('+'.join(corpus[i + x] for x in range(size) ))
-    return retList
-
-
 def make_tuples_from_list_of_lists(size, corpus):
     retList = []
+    badList = [u'http', u'html', u'www', u'com', u's', u't', u'said']
     if size == 1:
-        from nltk.corpus import stopwords
-        stop_words = list(stopwords.words('english'))
-        stop_words.extend([u'http', u'html', u'www', u'com', u's', u't', u'said'])
+        #pdb.set_trace()
+        try:
+            from nltk.corpus import stopwords
+            stop_words = list(stopwords.words('english'))
+            stop_words.extend(badList)
+        except LookupError:
+            import nltk
+            from tempfile import mkdtemp
+            from shutil import rmtree
+            nltkTmpDir = mkdtemp()
+            nltk.data.path = [ nltkTmpDir ]
+            nltkDl = nltk.downloader.Downloader(download_dir=nltkTmpDir)
+            nltkDl.download(info_or_id='stopwords')
+            stop_words = list(stopwords.words('english'))
+            # some basic sanity, but /shrug
+            if len(nltkTmpDir) > 4 and not nltkTmpDir.endswith('/'):
+                rmtree(nltkTmpDir)
+            stop_words.extend(badList)
+
         for thisList in corpus:
             retList.extend(w for w in thisList if w not in stop_words) 
     else:
@@ -130,11 +122,11 @@ def make_tuples_from_list_of_lists(size, corpus):
     return retList
 
     
-def showNTell(tuple):
-    import webbrowser
+def showNTell(mChain):
     #pdb.set_trace()
-    if tuple is not None:
-        keyList = "+\"" + str(tuple) + "\""
+    import webbrowser
+    if mChain is not None:
+        keyList = "+\"" + str(mChain) + "\""
     else:
         keyList = ''
     
@@ -142,10 +134,32 @@ def showNTell(tuple):
         autoraise=True)
     exit(0)
 
+def countMessagesWithTuple(mChain, service, user_id):
+    if mChain is not None:
+      query = "in:spam AND NOT(label:trash) AND " + "+\"" + str(mChain) + "\""
+      try:
+        response = service.users().messages().list(userId=user_id,
+                                                   q=query).execute()
+        messages = []
+        if 'messages' in response:
+          messages.extend(response['messages'])
+
+        while 'nextPageToken' in response:
+          page_token = response['nextPageToken']
+          response = service.users().messages().list(userId=user_id, q=query,
+                                             pageToken=page_token).execute()
+          messages.extend(response['messages'])
+
+        #pdb.set_trace()
+        print(str(len(messages))+": \""+mChain+"\"")
+        return len(messages)
+      except errors.HttpError, error:
+        print('An error occurred: %s')% error
+    
     
 # Setup the Gmail API
-#SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
-SCOPES = 'https://www.googleapis.com/auth/gmail.metadata'
+SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
+#SCOPES = 'https://www.googleapis.com/auth/gmail.metadata'
 store = file.Storage('credentials.json')
 creds = store.get()
 if not creds or creds.invalid:
@@ -156,43 +170,55 @@ service = build('gmail', 'v1', http=creds.authorize(Http()))
 
 print("Retrieving messages")
 threads = ListThreadsWithLabels(service, 'me', 'SPAM')
+#pdb.set_trace()
 
 # Try snippet list first, it's fast
 wordList = []
 for thread_id in threads:
-    msgWords = []
+    #msgWords = []
     #wordList.extend(GetText(thread_id['snippet']))
     wordList.append(GetText(thread_id['snippet']))
     #pdb.set_trace()
 
 
-tooMany = 35
-tooFew = 10
+tooMany = 50
+tooFewPref = 25
+tooFewOk = 15
 tooFewMin = 5
 hitCount = 0
 tupSize=8
-
-#tuples = make_tuples(tupSize, wordList)
-#wordCount = Counter(tuples)
-#hitCount = wordCount.most_common(1)[0][1]
-#pdb.set_trace()
+tupSizeFirstHit=0
 
 # Test multi-word combos in decreasing length until:
 # Happy: there's a common enough result
 # Unhappy: we're going word by word
-while hitCount <= tooFew and tupSize > 1:
+while hitCount <= tooFewPref and tupSize > 1:
     tupSize-=1
-    #tuples = make_tuples(tupSize, wordList)
     tuples = make_tuples_from_list_of_lists(tupSize, wordList)
     wordCount = Counter(tuples)
     hitCount = wordCount.most_common(1)[0][1]
+    # set a flag for a fallback tuple size
+    if hitCount > tooFewOk and tupSizeFirstHit == 0:
+        tupSizeFirstHit = tupSize
     #pdb.set_trace()
 
 # Find a tuple in the Goldilocks zone
 #pdb.set_trace()
 for k in wordCount:
-    if tooFew < wordCount[k] < tooMany:
-        showNTell(k)
+    if tooFewPref < wordCount[k] < tooMany:
+        if tooFewPref < countMessagesWithTuple(k, service, 'me') < tooMany:
+            showNTell(k)
+
+# Use larger tuple if one was found earlier
+if tupSizeFirstHit > 0:
+    tuples = make_tuples_from_list_of_lists(tupSizeFirstHit, wordList)
+    wordCount = Counter(tuples)
+    for tooFew in (tooFewPref, tooFewOk):
+        for k in wordCount:
+            if tooFew < wordCount[k] < tooMany:
+                if tooFew < countMessagesWithTuple(k, service, 'me') < tooMany:
+                    showNTell(k)
+    
 
 # We didn't find any Goldilocks tuples, so find one that might be "good enough"
 if wordCount.most_common(1)[0][1] > tooFewMin:
