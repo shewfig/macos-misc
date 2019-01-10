@@ -13,7 +13,7 @@ echo "Starting update check"
 brew update --quiet || exit 1
 
 # 2: check outdated & iterate the updates
-brew upgrade --quiet --cleanup
+brew upgrade --quiet
 
 # 3: upgrade taps
 brew cask upgrade
