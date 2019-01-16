@@ -219,15 +219,19 @@ function mouseSettingsApply(devSet)
 					end
 				else
 					if type(val) == 'number' or type(val) == 'string' then
-						print("Setting: "..tev.."="..val)
+						print(tev.."="..val)
 					else
-						print("Setting: "..tev.."="..type(val))
+						print(tev.."="..type(val))
 					end
 				end
 			end
 		else
 			hs.inspect(evt)
 		end
+	end
+	if nil ~= devSet['trackSpeed'] then
+		hs.mouse.trackingSpeed(devSet['trackSpeed'])
+		print("Tracking speed: "..hs.mouse.trackingSpeed())
 	end
 	if #evl > 0 then
 		-- for k,v in pairs(evl) do --print(v) end
@@ -256,18 +260,21 @@ end
 
 function usbWatcherHandler (e)
 	if e.eventType == 'removed' then
-		hs.mouse.trackingSpeed(mouseOverrides[0]['trackSpeed'])
 		print("Device removed: "..e.vendorID.."."..e.productID)
-		mouseTrap:stop()
+		if nil ~= mouseOverrides[e.vendorID] and nil ~= mouseOverrides[e.vendorID][e.productID] then
+			hs.mouse.trackingSpeed(mouseOverrides[0]['trackSpeed'])
+			print("Tracking speed: "..hs.mouse.trackingSpeed())
+			mouseTrap:stop()
+		end
 	elseif e.eventType == 'added' then
 		print("Device added: "..e.vendorID.."."..e.productID)
-		if nil ~= mouseOverrides[e.vendorID][e.productID] then
+		if nil ~= mouseOverrides[e.vendorID] and nil ~= mouseOverrides[e.vendorID][e.productID] then
 			if true == mouseSettingsApply(mouseOverrides[e.vendorID][e.productID]) then
 				mouseSet = mouseOverrides[e.vendorID][e.productID]
 				if nil ~= mouseSet['trackSpeed'] then
 					hs.mouse.trackingSpeed(mouseSet['trackSpeed'])
+					print("Tracking speed: "..hs.mouse.trackingSpeed())
 				end
-				print("Tracking speed: "..hs.mouse.trackingSpeed())
 			end
 		end
 	end
