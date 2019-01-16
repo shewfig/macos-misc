@@ -1,12 +1,3 @@
--- positive multiplier (== natural scrolling) makes mouse work like traditional scrollwheel
-local scrollmult = -4
-
--- tracking speed numbers
-tsSettings = {
-	[0] = 1.5,
-	[50184] = 3
-}
-
 -- mouse buttons (minus 1 from standard numbering)
 -- Format:
 -- -- DeviceID (0 for all mice)
@@ -16,40 +7,62 @@ tsSettings = {
 -- -- -- -- onClick
 mouseOverrides = {
 	[0] = {
-		scrollSpeed = 1.5,
+		-- default settings
+		trackSpeed = 1.5,
 	},
-	[50184] = {
-		scrollSpeed = 3,
-		[3] = {
-			onDrag = function (e) return doScroll(e) end,
-			onClick = function () 
-				hs.eventtap.otherClick(hs.mouse.getAbsolutePosition(), 400, 2) 
-				return true
-			end
-		},
-		[4] = { 
-			onClick = function () 
-				hs.eventtap.keyStroke({'ctrl'}, 'up', 400) 
-				return true
-			end
+	[1133] = {
+		-- Logitech
+		[50184] = {
+			-- TrackMan Marble
+			trackSpeed = 3,
+			[3] = {
+				onDrag = function (e) return doScroll(-4, e) end,
+				onClick = function () 
+					hs.eventtap.otherClick(hs.mouse.getAbsolutePosition(), 400, 2) 
+					return true
+				end
+			},
+			[4] = { 
+				onClick = function () 
+					hs.eventtap.keyStroke({'ctrl'}, 'up', 400) 
+					return true
+				end
+			}
 		}
 	}
 }
+
+--
+-- Dereference abstractions into functions
+--
 
 -- Mouse button events:
 -- otherMouseDragged       27
 -- otherMouseDown          25
 -- otherMouseUp            26
-for k,v in pairs(mouseOverrides) do
-	mouseOverrides[k]["dNum"] = 0
-	if mouseOverrides[k]["onClick"] ~= nil then
-		mouseOverrides[k][25] = function (e) return mHandleDown(e) end
-		mouseOverrides[k][26] = function (e) return mHandleUp(e) end
-	end
-	if mouseOverrides[k]["onDrag"] ~= nil then
-		mouseOverrides[k][27] = function (e) return mouseOverrides[k]["onDrag"](e) end
-	else
-		mouseOverrides[k][27] = function (e) return killMouseDown(e) end
+print("Parsing configuration")
+for vendID,devSet in pairs(mouseOverrides) do
+	print("Vendor: "..vendID)
+	if type(vendID) == 'number' then
+		for k,v in pairs(devSet) do
+			if type(k) == 'number' then
+				print("Device: "..k)
+				for mb,_ in pairs(v) do
+					if type(mb) == 'number' then
+						if nil ~= mouseOverrides[vendID][k][mb]["onClick"] then
+							print("Expanding onClick: "..mb)
+							mouseOverrides[vendID][k][mb][25] = function (e) return mHandleDown(e) end
+							mouseOverrides[vendID][k][mb][26] = function (e) return mHandleUp(e) end
+						end
+						if nil ~= mouseOverrides[vendID][k][mb]["onDrag"] then
+							print("Expanding onDrag: "..mb)
+							mouseOverrides[vendID][k][mb]["dNum"] = 0
+							mouseOverrides[vendID][k][mb][27] = function (e) return mouseOverrides[vendID][k][mb]["onDrag"](e) end
+						end
+					end
+				end
+			end
+		end
 	end
 end
 
@@ -58,7 +71,7 @@ local eet = hs.eventtap.event.types
 local eep = hs.eventtap.event.properties
 
 -- Actions
-function doScroll(e)
+function doScroll(scrollmult, e)
 	--print "doScroll"
 	-- signal mouseUp not to fire
 	killMouseDown(e)
@@ -76,7 +89,7 @@ end
 
 function killMouseDown(e)
 	-- kill the mouse click
-	mouseOverrides[e:getProperty(eep.mouseEventButtonNumber)].dNum = -1
+	mouseSet[e:getProperty(eep.mouseEventButtonNumber)].dNum = -1
 	-- do nothing else interesting
 	return false
 end
@@ -117,10 +130,10 @@ end
 function mHandleDown(e)
 	--print "HandleDown"
 	local mBNum = e:getProperty(eep.mouseEventButtonNumber)
-	mouseOverrides[mBNum].dNum = e:getProperty(eep.mouseEventNumber)
-	--print ("mouseDown: " .. mBNum .. "." .. mouseOverrides[mBNum].dNum)
+	mouseSet[mBNum].dNum = e:getProperty(eep.mouseEventNumber)
+	--print ("mouseDown: " .. mBNum .. "." .. mouseSet[mBNum].dNum)
 
-	if 0 == mouseOverrides[mBNum].dNum then
+	if 0 == mouseSet[mBNum].dNum then
 		-- faked click, let it pass
 		return false
 	else
@@ -133,19 +146,19 @@ function mHandleUp(e)
 	--print "mHandleUp"
 	local mBNum = e:getProperty(eep.mouseEventButtonNumber)
 	local mouseUNum = e:getProperty(eep.mouseEventNumber)
-	--print ("mouseUp: " .. mBNum .. "." .. mouseUNum .. ", down state: " .. mouseOverrides[mBNum].dNum)
-	if 0 == mouseOverrides[mBNum].dNum and 0 == mouseUNum then
+	--print ("mouseUp: " .. mBNum .. "." .. mouseUNum .. ", down state: " .. mouseSet[mBNum].dNum)
+	if 0 == mouseSet[mBNum].dNum and 0 == mouseUNum then
 		-- faked click, let it pass
 		--print("Synthetic click"..mBNum)
 		return false
-	elseif -1 == mouseOverrides[mBNum].dNum then
+	elseif -1 == mouseSet[mBNum].dNum then
 		-- scrolled, drop it
 		--print("Suppressed"..mBNum)
 		return true
-	elseif mouseUNum == mouseOverrides[mBNum].dNum then
-		if nil ~= mouseOverrides[mBNum]["onClick"] then
+	elseif mouseUNum == mouseSet[mBNum].dNum then
+		if nil ~= mouseSet[mBNum]["onClick"] then
 			--print("onClick: "..mBNum)
-			rv = mouseOverrides[mBNum].onClick(e)
+			rv = mouseSet[mBNum].onClick(e)
 			--print("Clickaction:"..tostring(rv))
 			if nil ~= rv then
 				return rv
@@ -154,7 +167,7 @@ function mHandleUp(e)
 				return true
 			end
 		else
-			--mouseOverrides[mBNum].dNum = 0
+			--mouseSet[mBNum].dNum = 0
 			-- real click, create a fake one
 			--print ("CLICK!")
 			--print("otherClick: "..mBNum)
@@ -162,16 +175,18 @@ function mHandleUp(e)
 			return true
 		end
 	else
-		--print("What?!".."mouseUp: " .. mBNum .. "." .. mouseUNum .. ", down state: " .. mouseOverrides[mBNum].dNum)
+		--print("What?!".."mouseUp: " .. mBNum .. "." .. mouseUNum .. ", down state: " .. mouseSet[mBNum].dNum)
 		return false
 	end
 end
 
+-- mouseSet as global
+mouseSet = nil
 function eventDispatch(e)
-	--print("mouseOverrides["..e:getProperty(eep.mouseEventButtonNumber).."]["..e:getType().."](e)")
+	--print("mouseSet["..e:getProperty(eep.mouseEventButtonNumber).."]["..e:getType().."](e)")
 	-- No real need to check: if error, false gets returned, which lets the event through
-	if nil ~= mouseOverrides[e:getProperty(eep.mouseEventButtonNumber)] then
-		cb = mouseOverrides[e:getProperty(eep.mouseEventButtonNumber)][e:getType()]
+	if nil ~= mouseSet[e:getProperty(eep.mouseEventButtonNumber)] then
+		cb = mouseSet[e:getProperty(eep.mouseEventButtonNumber)][e:getType()]
 		--print("CB:"..tostring(cb))
 		if nil ~= cb then
 			local retval = cb(e)
@@ -183,45 +198,98 @@ function eventDispatch(e)
 	end
 end
 
--- set event triggers for defined events per mouse button
-local evl = {}
-local flags = {}
-for mb, evt in pairs(mouseOverrides) do
-	if type(mb) == 'number' then
-		for tev, val in pairs(evt) do
-			if type(tev) == 'number' then
-				if (not flags[tev]) then
-					evl[#evl+1] = tev
-					flags[tev] = true
-					--print("Registering event: "..tev)
+-- Register actions
+
+-- define mouseTrap as a global
+mouseTrap = nil
+function mouseSettingsApply(devSet)
+	-- set event triggers for defined events per mouse button
+	-- evl is the list of event types to trap
+	local evl = {}
+	local flags = {}
+	for mb, evt in pairs(devSet) do
+		if type(evt) == 'table' then
+			print("Button: "..mb)
+			for tev, val in pairs(evt) do
+				if type(tev) == 'number' then
+					if (not flags[tev]) then
+						evl[#evl+1] = tev
+						flags[tev] = true
+						print("Event: "..tev)
+					end
+				else
+					if type(val) == 'number' or type(val) == 'string' then
+						print("Setting: "..tev.."="..val)
+					else
+						print("Setting: "..tev.."="..type(val))
+					end
+				end
+			end
+		else
+			hs.inspect(evt)
+		end
+	end
+	if #evl > 0 then
+		-- for k,v in pairs(evl) do --print(v) end
+		mouseTrap = hs.eventtap.new(evl, eventDispatch)
+		mouseTrap:start()
+		return true
+	end
+	return false
+end
+
+function findMouse(devList)
+	for venID, vDevs in pairs(mouseOverrides) do
+		if 0 ~= venID then
+			for devID,_ in pairs(vDevs) do
+				for _,uDev in pairs(devList) do
+					if uDev.vendorID == venID and uDev.productID == devID then
+						print("Found mouse: "..venID..":"..devID)
+						return venID, devID
+					end
 				end
 			end
 		end
 	end
-end
-if #evl > 0 then
-	-- for k,v in pairs(evl) do --print(v) end
-	mouseTrap = hs.eventtap.new(evl, eventDispatch)
-	mouseTrap:start()
+	return false
 end
 
 function usbWatcherHandler (e)
 	if e.eventType == 'removed' then
-		hs.mouse.trackingSpeed(tsSettings[0])
-		--print(hs.mouse.trackingSpeed())
+		hs.mouse.trackingSpeed(mouseOverrides[0]['trackSpeed'])
+		print("Device removed: "..e.vendorID.."."..e.productID)
+		mouseTrap:stop()
 	elseif e.eventType == 'added' then
-		if nil ~= tsSettings[e.productID] then
-			hs.mouse.trackingSpeed(tsSettings[e.productID])
-			--print(hs.mouse.trackingSpeed())
+		print("Device added: "..e.vendorID.."."..e.productID)
+		if nil ~= mouseOverrides[e.vendorID][e.productID] then
+			if true == mouseSettingsApply(mouseOverrides[e.vendorID][e.productID]) then
+				mouseSet = mouseOverrides[e.vendorID][e.productID]
+				if nil ~= mouseSet['trackSpeed'] then
+					hs.mouse.trackingSpeed(mouseSet['trackSpeed'])
+				end
+				print("Tracking speed: "..hs.mouse.trackingSpeed())
+			end
 		end
 	end
 end
 
-tsCount = 0
-for _,_ in pairs(tsSettings) do
-	tsCount = tsCount + 1
+mouseCount = 0
+for _,_ in pairs(mouseOverrides) do
+	mouseCount = mouseCount + 1
 end
-if tsCount > 1 then
+if mouseCount > 1 then
+	mouseVID, mouseDID = findMouse(hs.usb.attachedDevices())
+	if nil ~= mouseOverrides[mouseVID] and nil ~= mouseOverrides[mouseVID][mouseDID] then
+		print("Settings found, validating")
+		if true == mouseSettingsApply(mouseOverrides[mouseVID][mouseDID]) then
+			print("Applying")
+			mouseSet = mouseOverrides[mouseVID][mouseDID]
+		else
+			print("Failed!")
+		end
+	else
+		print("Unknown device")
+	end
 	mouseWatcher = hs.usb.watcher.new(usbWatcherHandler)
 	mouseWatcher:start()
 end
