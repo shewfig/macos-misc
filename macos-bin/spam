@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd ~/GitHub/gmail-spam-sift
+pipenv run ./spam-sift.py
