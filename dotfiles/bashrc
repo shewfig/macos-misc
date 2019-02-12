@@ -1,3 +1,4 @@
 export PATH=${PATH}:~/Library/Python/2.7/bin:~/bin
 export EDITOR=vim
 export CLICOLOR=1
+export PS1="\u@\h:\W\$ "
