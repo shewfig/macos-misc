@@ -10,10 +10,10 @@
 # 1: update
 # if this doesn't work, nothing following will either
 echo "Starting update check"
-brew update --quiet || exit 1
+brew update || exit 1
 
 # 2: check outdated & iterate the updates
-brew upgrade --quiet
+brew upgrade
 
 # 3: upgrade taps
 brew cask upgrade
