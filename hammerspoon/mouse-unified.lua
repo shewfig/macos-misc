@@ -1,10 +1,15 @@
--- mouse buttons (minus 1 from standard numbering)
+--
+-- Config
+--
+
+-- mouseOverrides: config for devices
 -- Format:
--- -- DeviceID (0 for all mice)
--- -- -- scollSpeed = [ 0 - 3 ]
--- -- -- [button number]
--- -- -- -- onDrag
--- -- -- -- onClick
+-- -- MfgID (0 for all mice / default values)
+-- -- -- DeviceID
+-- -- -- -- trackSpeed = [ 0 - 3 ]
+-- -- -- -- [button number] = button number minus 1 from standard numbering
+-- -- -- -- -- onDrag = function(event) to execute on drag w/ button
+-- -- -- -- -- onClick = function(event) to execute on click of button
 mouseOverrides = {
 	[0] = {
 		-- default settings
@@ -31,6 +36,10 @@ mouseOverrides = {
 		}
 	}
 }
+
+--
+-- End of config
+--
 
 --
 -- Dereference abstractions into functions
@@ -70,7 +79,11 @@ end
 local eet = hs.eventtap.event.types
 local eep = hs.eventtap.event.properties
 
+--
 -- Actions
+--
+
+-- doScroll: scrolls based on drag direction
 function doScroll(scrollmult, e)
 	--print "doScroll"
 	-- signal mouseUp not to fire
@@ -87,44 +100,14 @@ function doScroll(scrollmult, e)
 	return true
 end
 
+--
+-- utility functions to differentiate drag vs click
+--
 function killMouseDown(e)
 	-- kill the mouse click
 	mouseSet[e:getProperty(eep.mouseEventButtonNumber)].dNum = -1
 	-- do nothing else interesting
 	return false
-end
-
-tKeyHold = false
-function doKeyMap(e)
-	if tKeyHold then
-		--print("doKeyMap: deferred")
-		return false
-	else
-		-- local oldmousepos = hs.mouse.getAbsolutePosition()
-		local dx = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaX'])
-		local dy = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaY'])
-		if math.abs(dx) > math.abs(dy) then
-			if dx > 0 then
-				arrowKeyDir = 'right'
-			else
-				arrowKeyDir = 'left'
-			end
-		else
-			if dy > 0 then
-				arrowKeyDir = 'down'
-			else
-				arrowKeyDir = 'up'
-			end
-		end
-		--print("doKeyMap:"..arrowKeyDir)
-		-- hs.mouse.setAbsolutePosition(oldmousepos)
-		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, true):post()
-		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, false):post()
-		hs.eventtap.keyStroke({'ctrl'}, arrowKeyDir)
-		tKeyHold = true
-		hs.timer.doAfter(1, function () tKeyHold=false end)
-		return true
-	end
 end
 
 function mHandleDown(e)
@@ -179,8 +162,49 @@ function mHandleUp(e)
 		return false
 	end
 end
+--
+-- end utility functions
+--
 
--- mouseSet as global
+-- this function is... experimental
+tKeyHold = false
+function doKeyMap(e)
+	if tKeyHold then
+		--print("doKeyMap: deferred")
+		return false
+	else
+		-- local oldmousepos = hs.mouse.getAbsolutePosition()
+		local dx = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaX'])
+		local dy = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaY'])
+		if math.abs(dx) > math.abs(dy) then
+			if dx > 0 then
+				arrowKeyDir = 'right'
+			else
+				arrowKeyDir = 'left'
+			end
+		else
+			if dy > 0 then
+				arrowKeyDir = 'down'
+			else
+				arrowKeyDir = 'up'
+			end
+		end
+		--print("doKeyMap:"..arrowKeyDir)
+		-- hs.mouse.setAbsolutePosition(oldmousepos)
+		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, true):post()
+		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, false):post()
+		hs.eventtap.keyStroke({'ctrl'}, arrowKeyDir)
+		tKeyHold = true
+		hs.timer.doAfter(1, function () tKeyHold=false end)
+		return true
+	end
+end
+
+--
+-- Button event handling
+--
+-- eventDispatch: callback function for mouse eventtap
+-- mouseSet as global for persistence
 mouseSet = nil
 function eventDispatch(e)
 	--print("mouseSet["..e:getProperty(eep.mouseEventButtonNumber).."]["..e:getType().."](e)")
@@ -198,9 +222,8 @@ function eventDispatch(e)
 	end
 end
 
--- Register actions
-
--- define mouseTrap as a global
+-- mouseSettingsApply: determine which events to monitor, and set eventtap
+-- mouseTrap as global for persistence
 mouseTrap = nil
 function mouseSettingsApply(devSet)
 	-- set event triggers for defined events per mouse button
@@ -242,6 +265,7 @@ function mouseSettingsApply(devSet)
 	return false
 end
 
+-- findMouse: use w/ USB watcher to see if there is a config defined for the newly inserted device
 function findMouse(devList)
 	for venID, vDevs in pairs(mouseOverrides) do
 		if 0 ~= venID then
@@ -258,6 +282,7 @@ function findMouse(devList)
 	return false
 end
 
+-- usbWatcherHandler: callback for usb watcher (stop mouse event watcher if disconnected)
 function usbWatcherHandler (e)
 	if e.eventType == 'removed' then
 		print("Device removed: "..e.vendorID.."."..e.productID)
@@ -269,7 +294,9 @@ function usbWatcherHandler (e)
 	elseif e.eventType == 'added' then
 		print("Device added: "..e.vendorID.."."..e.productID)
 		if nil ~= mouseOverrides[e.vendorID] and nil ~= mouseOverrides[e.vendorID][e.productID] then
+			-- mouseSettingsApply does mouseTrap:start()
 			if true == mouseSettingsApply(mouseOverrides[e.vendorID][e.productID]) then
+				-- remap mouseSet, which eventDispatch uses to map actions
 				mouseSet = mouseOverrides[e.vendorID][e.productID]
 				if nil ~= mouseSet['trackSpeed'] then
 					hs.mouse.trackingSpeed(mouseSet['trackSpeed'])
