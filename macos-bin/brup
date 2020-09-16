@@ -16,7 +16,7 @@ brew update || exit 1
 brew upgrade
 
 # 3: upgrade taps
-brew cask upgrade
+brew upgrade --cask
 
 # 4: clean up
 brew cleanup
