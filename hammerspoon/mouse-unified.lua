@@ -23,13 +23,13 @@ mouseOverrides = {
 			[3] = {
 				onDrag = function (e) return doScroll(-4, e) end,
 				onClick = function () 
-					hs.eventtap.otherClick(hs.mouse.getAbsolutePosition(), 400, 2) 
+					hs.eventtap.otherClick(hs.mouse.absolutePosition(), 400, 2) 
 					return true
 				end
 			},
 			[4] = { 
 				onClick = function () 
-					hs.eventtap.keyStroke({'ctrl'}, 'up', 400) 
+					hs.application.launchOrFocus("Mission Control");
 					return true
 				end
 			}
@@ -89,13 +89,13 @@ function doScroll(scrollmult, e)
 	-- signal mouseUp not to fire
 	killMouseDown(e)
 	-- measure the scroll
-	local oldmousepos = hs.mouse.getAbsolutePosition()
+	local oldmousepos = hs.mouse.absolutePosition()
 	local dx = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaX'])
 	local dy = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaY'])
 	-- scroll
 	hs.eventtap.event.newScrollEvent({dx * scrollmult, dy * scrollmult},{},'pixel'):post()
 	-- put the mouse back
-	hs.mouse.setAbsolutePosition(oldmousepos)
+	hs.mouse.absolutePosition(oldmousepos)
 	-- suppress real event
 	return true
 end
@@ -154,7 +154,7 @@ function mHandleUp(e)
 			-- real click, create a fake one
 			--print ("CLICK!")
 			--print("otherClick: "..mBNum)
-			hs.eventtap.otherClick(hs.mouse.getAbsolutePosition(), nil, mBNum)
+			hs.eventtap.otherClick(hs.mouse.absolutePosition(), nil, mBNum)
 			return true
 		end
 	else
@@ -173,7 +173,7 @@ function doKeyMap(e)
 		--print("doKeyMap: deferred")
 		return false
 	else
-		-- local oldmousepos = hs.mouse.getAbsolutePosition()
+		-- local oldmousepos = hs.mouse.absolutePosition()
 		local dx = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaX'])
 		local dy = e:getProperty(hs.eventtap.event.properties['mouseEventDeltaY'])
 		if math.abs(dx) > math.abs(dy) then
@@ -190,7 +190,7 @@ function doKeyMap(e)
 			end
 		end
 		--print("doKeyMap:"..arrowKeyDir)
-		-- hs.mouse.setAbsolutePosition(oldmousepos)
+		-- hs.mouse.absolutePosition(oldmousepos)
 		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, true):post()
 		-- hs.eventtap.event.newKeyEvent({'ctrl'}, arrowKeyDir, false):post()
 		hs.eventtap.keyStroke({'ctrl'}, arrowKeyDir)
