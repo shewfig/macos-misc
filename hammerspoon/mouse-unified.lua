@@ -29,7 +29,9 @@ mouseOverrides = {
 			},
 			[4] = { 
 				onClick = function () 
-					hs.application.launchOrFocus("Mission Control");
+					hs.eventtap.event.newKeyEvent(hs.keycodes.map.cmd, true):post()
+					hs.eventtap.event.newKeyEvent(hs.keycodes.map.tab, true):post()
+					hs.eventtap.event.newKeyEvent(hs.keycodes.map.tab, false):post()
 					return true
 				end
 			}
@@ -114,7 +116,7 @@ function mHandleDown(e)
 	--print "HandleDown"
 	local mBNum = e:getProperty(eep.mouseEventButtonNumber)
 	mouseSet[mBNum].dNum = e:getProperty(eep.mouseEventNumber)
-	--print ("mouseDown: " .. mBNum .. "." .. mouseSet[mBNum].dNum)
+	print ("mouseDown: " .. mBNum .. "." .. mouseSet[mBNum].dNum)
 
 	if 0 == mouseSet[mBNum].dNum then
 		-- faked click, let it pass
@@ -207,7 +209,7 @@ end
 -- mouseSet as global for persistence
 mouseSet = nil
 function eventDispatch(e)
-	--print("mouseSet["..e:getProperty(eep.mouseEventButtonNumber).."]["..e:getType().."](e)")
+	print("mouseSet["..e:getProperty(eep.mouseEventButtonNumber).."]["..e:getType().."](e)")
 	-- No real need to check: if error, false gets returned, which lets the event through
 	if nil ~= mouseSet[e:getProperty(eep.mouseEventButtonNumber)] then
 		cb = mouseSet[e:getProperty(eep.mouseEventButtonNumber)][e:getType()]
@@ -259,6 +261,19 @@ function mouseSettingsApply(devSet)
 	if #evl > 0 then
 		-- for k,v in pairs(evl) do --print(v) end
 		mouseTrap = hs.eventtap.new(evl, eventDispatch)
+		mouseTrap:start()
+		return true
+	else
+		mouseTrap = hs.eventtap.new({ 
+			hs.eventtap.event.types.otherMouseDown,
+			hs.eventtap.event.types.leftMouseDown,
+			hs.eventtap.event.types.rightMouseDown
+		}, function(e)
+			local button = e:getProperty(
+			hs.eventtap.event.properties['mouseEventButtonNumber']
+			)
+			print(string.format("Clicked Mouse Button: %i", button))
+		end)
 		mouseTrap:start()
 		return true
 	end
