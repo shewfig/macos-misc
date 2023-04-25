@@ -1,0 +1,4 @@
+export PATH="${PATH}:~/bin"
+export EDITOR=vim
+export CLICOLOR=1
+export LESS="~ceFiMRswX"
