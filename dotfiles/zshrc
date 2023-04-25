@@ -1,4 +1,11 @@
+# add aliases
 if [ -f ~/.aliases ]; then
 	source ~/.aliases
 fi
+
+# enable vi keymappings
 set -o vi
+
+# mudge prompt
+export prompt="${prompt/\%\#/%(!.\#.$)}"
+
