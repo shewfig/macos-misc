@@ -1,4 +1,5 @@
 set et
 set sw=2
-set bg=dark
-colors default
+set ts=2
+set si
+colorscheme default
