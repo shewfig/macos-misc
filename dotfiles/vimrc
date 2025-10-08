@@ -3,10 +3,11 @@ set sw=2
 set ts=2
 
 set si
-colorscheme default
-
 set hls
 set ruler
 
 syntax on
 filetype indent plugin on
+
+colorscheme torte
+
